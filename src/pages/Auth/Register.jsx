@@ -28,6 +28,7 @@ const registerSchema = z
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const theme = useTheme((state) => state.theme);
   const {
     register,
@@ -181,11 +182,22 @@ export default function Register() {
         <div>
           <div className="relative w-full flex items-center">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showPasswordConfirm ? "text" : "password"}
               {...register("password_confirmation")}
               placeholder="Password confirm..."
               className="w-full border border-neutral-600 rounded-lg pl-4 pr-10 py-2 bg-transparent focus:outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setShowPasswordConfirm((prev) => !prev)}
+              className="absolute right-3 text-neutral-500 hover:text-neutral-300 cursor-pointer select-none"
+            >
+              {showPassword ? (
+                <i className="fa-solid fa-eye-slash text-sm"></i>
+              ) : (
+                <i className="fa-solid fa-eye text-sm"></i>
+              )}
+            </button>
           </div>
           {errors.password_confirmation && (
             <p className="text-rose-500 text-xs mt-1">

@@ -173,11 +173,15 @@ export const getSinglePost = async (id) => {
   return res.data;
 };
 
-export const createPost = async (data) => {
-  const res = await request.post("/posts", data);
-
+export const createPost = async (formData) => {
+  const res = await request.post("posts", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data", 
+    },
+  });
   return res.data;
 };
+
 
 export const updatePost = async (id, data) => {
   const res = await request.post(`/posts/${id}`, data);
@@ -396,20 +400,31 @@ export const uploadAvatar = async (file) => {
 };
 
 export const uploadMedia = async (files) => {
-  if (!files?.length) {
+  if (!files || files.length === 0) {
     return { urls: [] };
   }
 
   const formData = new FormData();
+  const fileArray = Array.from(files);
 
-  files.forEach((file) => {
-    formData.append("media[]", file);
+  fileArray.forEach((file) => {
+    formData.append("media", file);
   });
 
-  const res = await request.post("/upload/media", formData);
+  try {
+    const res = await request.post("/upload/media", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
 
-  const data = res.data || res;
-  const urls = data?.urls || data?.data || [];
+    const data = res.data || res;
+    const urls = data?.urls || data?.data || [];
 
-  return { urls: Array.isArray(urls) ? urls : [] };
+    return { urls: Array.isArray(urls) ? urls : [] };
+  } catch (error) {
+    console.error(error);
+    return { urls: [] };
+  }
 };
+

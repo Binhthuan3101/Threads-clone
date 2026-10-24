@@ -41,45 +41,35 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
 
   const createPostMutation = useMutation({
     mutationFn: async (data) => {
-      let uploadedMediaUrls = [];
+      const formData = new FormData();
 
-      if (mediaFiles.length > 0) {
-        const uploadRes = await uploadMedia(mediaFiles);
-
-        uploadedMediaUrls = uploadRes?.urls || uploadRes?.data || [];
-      }
-
-      const payload = {
-        content: data.content?.trim() || "",
-      };
+      formData.append("content", data.content?.trim() || "");
 
       if (data.topicName?.trim()) {
-        payload.topic_name = data.topicName.trim();
+        formData.append("topic_name", data.topicName.trim());
       }
 
-      if (uploadedMediaUrls.length > 0) {
-        payload.media = uploadedMediaUrls;
+      if (mediaFiles.length > 0) {
+        mediaFiles.forEach((file) => {
+          formData.append("media[]", file);
+        });
       }
 
-      return await createPost(payload);
+      return await createPost(formData);
     },
 
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["posts"],
       });
-
       handleClose();
     },
 
     onError: (err) => {
       console.error("Đăng bài thất bại:", err);
-      console.error("Response data:", err?.response?.data);
-      console.error("Status:", err?.response?.status);
-
+      console.error("Response data từ Server:", err?.response?.data);
       alert(
-        err?.response?.data?.message ||
-          "Đăng bài thất bại. Vui lòng thử lại!",
+        err?.response?.data?.message || "Đăng bài thất bại. Vui lòng thử lại!",
       );
     },
   });
@@ -135,10 +125,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
 
   return (
     <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div
-        className="absolute inset-0"
-        onClick={handleClose}
-      />
+      <div className="absolute inset-0" onClick={handleClose} />
 
       <div className="relative bg-black w-full max-w-xl border border-neutral-600 rounded-2xl shadow-2xl overflow-hidden z-10">
         <div className="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
@@ -151,9 +138,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
             Hủy
           </button>
 
-          <h2 className="font-bold text-base text-white">
-            Thread mới
-          </h2>
+          <h2 className="font-bold text-base text-white">Thread mới</h2>
 
           <div className="flex items-center gap-3 text-white">
             <button type="button">
@@ -166,10 +151,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
           </div>
         </div>
 
-        <form
-          onSubmit={handleSubmit(onSubmit)}
-          className="p-4 space-y-3"
-        >
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4 space-y-3">
           <div className="flex gap-3">
             <div className="flex flex-col items-center">
               <img
@@ -192,9 +174,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-1.5 text-sm">
                 <span className="font-bold text-white">
-                  {currentUser?.username ||
-                    currentUser?.name ||
-                    "nguoidung"}
+                  {currentUser?.username || currentUser?.name || "nguoidung"}
                 </span>
 
                 <i className="fa-solid fa-chevron-right text-xs text-zinc-500"></i>
@@ -219,10 +199,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
               {mediaPreviews.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto py-2">
                   {mediaPreviews.map((src, index) => (
-                    <div
-                      key={index}
-                      className="relative group flex-shrink-0"
-                    >
+                    <div key={index} className="relative group flex-shrink-0">
                       <img
                         src={src}
                         alt="Preview"
@@ -346,9 +323,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
                   : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
               }`}
             >
-              {createPostMutation.isPending
-                ? "Đang đăng..."
-                : "Đăng"}
+              {createPostMutation.isPending ? "Đang đăng..." : "Đăng"}
             </Button>
           </div>
         </form>

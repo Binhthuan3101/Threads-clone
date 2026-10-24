@@ -163,7 +163,6 @@ export default function Home() {
           user={currentUser}
           isOpen={!!replyPost}
           onClose={() => setReplyPost(null)}
-          onComment={() => setReplyPost(post)}
         />
       )}
 

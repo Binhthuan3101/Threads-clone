@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createPost, getUserInfo, uploadMedia } from "../api/Threads";
+import { createPost, getUserInfo } from "../api/Threads";
 import { Button } from "./ui/button";
 import { useForm } from "react-hook-form";
 

@@ -42,7 +42,6 @@ export default function ReplyModal({
       alert(err?.response?.data?.message || "Gửi trả lời thất bại");
     },
   });
-  console.log("Trả lời: ", replies);
 
   if (!isOpen) return null;
 

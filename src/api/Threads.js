@@ -130,11 +130,7 @@ export const updateColumns = async (columns) => {
 };
 
 export const updateProfile = async (data) => {
-  const res = await request.post("/auth/profile", {
-    _method: "PUT",
-    ...data,
-  });
-
+  const res = await request.put("/auth/profile", data);
   return res.data;
 };
 
@@ -176,12 +172,11 @@ export const getSinglePost = async (id) => {
 export const createPost = async (formData) => {
   const res = await request.post("posts", formData, {
     headers: {
-      "Content-Type": "multipart/form-data", 
+      "Content-Type": "multipart/form-data",
     },
   });
-  return res.data;
+  return res.data || res;
 };
-
 
 export const updatePost = async (id, data) => {
   const res = await request.post(`/posts/${id}`, data);
@@ -325,12 +320,11 @@ export const followUser = async (id) => {
 };
 
 export const unfollowUser = async (id) => {
-  const res = await request.post(`/users/${id}/follow`, {
-    _method: "DELETE",
-  });
+  const res = await request.delete(`/users/${id}/follow`);
 
   return res.data;
 };
+
 
 export const getFollowers = async (id) => {
   const res = await request.get(`/users/${id}/followers`);
@@ -376,6 +370,40 @@ export const getFollowSuggestions = async (page, perPage) => {
   });
 
   return res.data;
+};
+export const getUserByUsername = async (username) => {
+  const res = await request.get("/search", {
+    params: {
+      q: username,
+      page: 1,
+      users_per_page: 20,
+      topics_per_page: 0,
+    },
+  });
+  const data = res.data?.data || res.data;
+  const users = data?.users || [];
+  const found = users.find(
+    (u) => u.username?.toLowerCase() === username.toLowerCase()
+  );
+  if (!found) {
+    const err = new Error("User not found");
+    err.response = { status: 404, data: { message: "User not found" } };
+    throw err;
+  }
+  return { data: found };
+};
+export const getUserPosts = async (userId, page = 1, perPage = 10) => {
+  // Thử feed; nếu API không lọc user_id, filter phía client
+  const res = await request.get("/posts/feed", {
+    params: { type: "for_you", page, per_page: perPage, user_id: userId },
+  });
+  const payload = res.data;
+  const list = payload?.data || [];
+  const filtered = list.filter((p) => String(p.user_id) === String(userId));
+  return {
+    data: filtered,
+    pagination: payload?.pagination,
+  };
 };
 
 export const getUserReposts = async (id, page, perPage) => {
@@ -427,4 +455,3 @@ export const uploadMedia = async (files) => {
     return { urls: [] };
   }
 };
-

@@ -4,6 +4,7 @@ import { useForm } from "react-hook-form";
 import { Button } from "../ui/button";
 import { formatTimeAgo } from "../formatTimeAgo";
 import PostCard from "@/pages/HomePage/PostCard";
+import { useTheme } from "@/store/theme";
 
 export default function ReplyModal({
   post,
@@ -14,6 +15,7 @@ export default function ReplyModal({
   onRespost,
   onShare,
 }) {
+  const theme = useTheme((s) => s.theme);
   const queryClient = useQueryClient();
   const { register, handleSubmit, watch, reset } = useForm({
     defaultValues: { content: "" },
@@ -51,7 +53,9 @@ export default function ReplyModal({
         className="absolute inset-0 bg-black/70 backdrop-blur-xs"
         onClick={onClose}
       ></div>
-      <div className="relative w-full bg-neutral-900 max-w-lg max-h-[90vh] border border-zinc-600 rounded-2xl z-10 flex flex-col shadow-2xl overflow-hidden">
+      <div
+        className={`relative w-full ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} max-w-lg max-h-[90vh] border border-zinc-600 rounded-2xl z-10 flex flex-col shadow-2xl overflow-hidden`}
+      >
         <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700">
           <button
             type="button"
@@ -70,7 +74,7 @@ export default function ReplyModal({
               <PostCard post={post} currentUserId={user.id} />
             </div>
           </div>
-  
+
           <div className="border-y  py-3">
             <div className="flex px-4 items-center justify-between ">
               <div className="flex items-center gap-2">
@@ -82,7 +86,7 @@ export default function ReplyModal({
                   <i className="fa-solid fa-angle-down"></i>
                 </span>
               </div>
-  
+
               <div className="text-neutral-600 text-sm flex items-center gap-2">
                 <span>Xem hoạt động</span>
                 <span>
@@ -90,7 +94,7 @@ export default function ReplyModal({
                 </span>
               </div>
             </div>
-  
+
             <div className="px-3 py-2">
               <form
                 onSubmit={handleSubmit((d) => mutation.mutate(d))}
@@ -108,7 +112,7 @@ export default function ReplyModal({
                     rows={1}
                     className="flex-1 text-sm placeholder:text-zinc-500 focus:outline-none resize-none bg-transparent pt-0.5 leading-relaxed [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
                   />
-  
+
                   <div className="flex items-center gap-3 text-zinc-500 text-lg shrink-0">
                     <i className="fa-regular fa-image cursor-pointer hover:text-white transition" />
                     <i className="fa-regular fa-face-smile cursor-pointer hover:text-white transition" />
@@ -118,7 +122,7 @@ export default function ReplyModal({
                       disabled={!content?.trim() || mutation.isPending}
                       className={`w-8 h-8 flex items-center justify-center rounded-full text-sm font-bold transition ${
                         content?.trim()
-                          ? "bg-white text-black hover:opacity-90"
+                          ? `${theme === "dark" ? "bg-white text-black" : "bg-black text-white"} hover:opacity-90`
                           : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
                       }`}
                     >
@@ -134,10 +138,13 @@ export default function ReplyModal({
               Không có trả lời nào
             </div>
           )}
-  
+
           <div className="h-64 overflow-y-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             {replies.map((rep) => (
-              <div key={rep.id} className="px-4 py-2 border-b border-neutral-800">
+              <div
+                key={rep.id}
+                className="px-4 py-2 border-b border-neutral-800"
+              >
                 <PostCard post={rep} onComment={onComment} />
               </div>
             ))}

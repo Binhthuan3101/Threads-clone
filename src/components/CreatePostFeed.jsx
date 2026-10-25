@@ -3,12 +3,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPost, getUserInfo } from "../api/Threads";
 import { Button } from "./ui/button";
 import { useForm } from "react-hook-form";
+import { useTheme } from "@/store/theme";
 
-export default function CreatePostFeed({ isOpen, isClose, user }) {
+export default function CreatePostFeed({
+  isOpen,
+  isClose,
+  user,
+  tab = "for_you",
+}) {
   const queryClient = useQueryClient();
   const [mediaFiles, setMediaFiles] = useState([]);
   const [mediaPreviews, setMediaPreviews] = useState([]);
-
+  const theme = useTheme((state) => state.theme);
   const { register, handleSubmit, reset, watch } = useForm({
     defaultValues: {
       content: "",
@@ -27,8 +33,8 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
 
   const currentUser = user || userData?.data || userData;
 
-  const handleClose = () => {
-    if (createPostMutation.isPending) return;
+  const handleClose = (force = false) => {
+    if (!force && createPostMutation.isPending) return;
 
     mediaPreviews.forEach((url) => URL.revokeObjectURL(url));
 
@@ -60,9 +66,9 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
 
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: ["posts"],
+        queryKey: ["posts", tab],
       });
-      handleClose();
+      handleClose(true);
     },
 
     onError: (err) => {
@@ -127,20 +133,20 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
     <div className="fixed inset-0 z-50 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="absolute inset-0" onClick={handleClose} />
 
-      <div className="relative bg-black w-full max-w-xl border border-neutral-600 rounded-2xl shadow-2xl overflow-hidden z-10">
+      <div className={`relative ${theme==="dark"?"bg-black text-white":"bg-white text-black"} w-full max-w-xl border border-neutral-600 rounded-2xl shadow-2xl overflow-hidden z-10`}>
         <div className="px-4 py-3 border-b border-neutral-700 flex items-center justify-between">
           <button
             type="button"
             onClick={handleClose}
             disabled={createPostMutation.isPending}
-            className="font-medium text-white text-sm hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="font-medium  text-sm hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Hủy
           </button>
 
-          <h2 className="font-bold text-base text-white">Thread mới</h2>
+          <h2 className="font-bold text-base ">Thread mới</h2>
 
-          <div className="flex items-center gap-3 text-white">
+          <div className="flex items-center gap-3 ">
             <button type="button">
               <i className="fa-regular fa-file-lines text-lg"></i>
             </button>
@@ -173,7 +179,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
 
             <div className="flex-1 space-y-2">
               <div className="flex items-center gap-1.5 text-sm">
-                <span className="font-bold text-white">
+                <span className="font-bold ">
                   {currentUser?.username || currentUser?.name || "nguoidung"}
                 </span>
 
@@ -193,7 +199,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
                 placeholder="Có gì mới?"
                 {...register("content")}
                 disabled={createPostMutation.isPending}
-                className="w-full bg-transparent text-slate-200 placeholder:text-zinc-500 text-sm focus:outline-none resize-none disabled:opacity-50"
+                className="w-full bg-transparent text-zinc-500 placeholder:text-zinc-500 text-sm focus:outline-none resize-none disabled:opacity-50"
               />
 
               {mediaPreviews.length > 0 && (
@@ -319,7 +325,7 @@ export default function CreatePostFeed({ isOpen, isClose, user }) {
               disabled={isSubmitDisabled}
               className={`px-5 py-1.5 rounded-xl text-sm font-bold transition-all ${
                 !isSubmitDisabled
-                  ? "bg-white text-black hover:bg-zinc-200"
+                  ? `${theme==="dark"?"bg-white text-black":"bg-black text-white"}  hover:bg-zinc-200`
                   : "bg-zinc-800 text-zinc-500 cursor-not-allowed"
               }`}
             >

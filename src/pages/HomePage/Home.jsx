@@ -154,6 +154,7 @@ export default function Home() {
           isOpen={isOpenPost}
           isClose={() => setIsOpenPost(false)}
           user={currentUser}
+          tab={tab}
         />
       )}
 
@@ -170,10 +171,10 @@ export default function Home() {
         <EmbedModal post={embedPost} onClose={() => setEmbedPost(null)} />
       )}
 
-      <main className="flex-1 w-full max-w-150 mx-auto border-t border-x border-zinc-700 rounded-t-xl mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <main className="flex-1 w-full max-w-150 mx-auto border-t border-x border-zinc-300 rounded-t-xl mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="min-h-full pb-24 md:pb-6">
           {token && currentUser && (
-            <div className="p-4 border-b border-zinc-800 flex items-center gap-3">
+            <div className="p-4 border-b border-zinc-400 flex items-center gap-3">
               <img
                 src={
                   currentUser?.avatar_url ||
@@ -204,23 +205,6 @@ export default function Home() {
             </div>
           )}
 
-          {!token && (
-            <div className="p-6 text-center border-b border-zinc-800">
-              <p className="text-neutral-400 mb-3">{t("login_to_see_more")}</p>
-              <Link to="/login">
-                <Button
-                  className={
-                    theme === "dark"
-                      ? "bg-white text-black"
-                      : "bg-black text-white"
-                  }
-                >
-                  Đăng nhập
-                </Button>
-              </Link>
-            </div>
-          )}
-
           {isLoading ? (
             <div className="text-center pt-20 font-bold">Loading...</div>
           ) : error ? (
@@ -230,7 +214,7 @@ export default function Home() {
           ) : (
             <div>
               {posts.map((post) => (
-                <div key={post.id}  className="border-b border-zinc-800">
+                <div key={post.id}  className="border-b border-zinc-400">
                   <PostCard
                     post={post}
                     currentUserId={currentUser?.id}

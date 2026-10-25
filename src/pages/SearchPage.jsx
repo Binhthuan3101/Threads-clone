@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Link } from "react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   followUser,
   getFollowSuggestions,
@@ -7,19 +10,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useTheme } from "@/store/theme";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "react-router";
 
 function UserRow({ user }) {
   const queryClient = useQueryClient();
   const [following, setFollowing] = useState(!!user.is_following);
 
   const followMutation = useMutation({
-    mutationFn: () => (following ? unfollowUser(user.id) : followUser(user.id)),
-    onMutate: () => setFollowing((v) => !v),
-    onError: () => setFollowing((v) => !v),
-    onSettled: () => {
+    mutationFn: async (wantFollow) => {
+      if (!user?.id) throw new Error("Không có user id");
+      return wantFollow ? followUser(user.id) : unfollowUser(user.id);
+    },
+    onMutate: async (wantFollow) => {
+      const prev = following;
+      setFollowing(wantFollow);
+      return { prev };
+    },
+    onError: (err, _wantFollow, ctx) => {
+      const msg = err?.response?.data?.message || "";
+      if (/already following/i.test(msg)) {
+        setFollowing(true);
+        return;
+      }
+      if (/not following/i.test(msg)) {
+        setFollowing(false);
+        return;
+      }
+      if (ctx) setFollowing(ctx.prev);
+      console.error("Follow error:", err?.response?.data);
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["search"] });
       queryClient.invalidateQueries({ queryKey: ["suggestions"] });
     },
@@ -32,7 +51,7 @@ function UserRow({ user }) {
         className="flex items-center gap-3 flex-1 min-w-0"
       >
         <img
-          src={user.avatar_url || "/default-avatar.jpg"}
+          src={user.avatar_url || user.avatar || "/default-avatar.jpg"}
           alt=""
           className="w-11 h-11 rounded-full object-cover shrink-0"
         />
@@ -64,10 +83,10 @@ function UserRow({ user }) {
         onClick={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          followMutation.mutate();
+          followMutation.mutate(!following);
         }}
         disabled={followMutation.isPending}
-        className={`shrink-0 rounded-xl text-sm font-semibold px-4 ${
+        className={`shrink-0 rounded-xl text-sm font-semibold px-4 h-8 ${
           following
             ? "bg-transparent border border-zinc-600 text-white hover:bg-neutral-800"
             : "bg-white text-black hover:bg-neutral-200"
@@ -105,11 +124,10 @@ function TopicRow({ topic }) {
 }
 
 export default function Search() {
-  const theme = useTheme((state) => state.theme);
+  const theme = useTheme((s) => s.theme);
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebounce(query, 500);
   const token = localStorage.getItem("access_token");
-
   const canSearch = debouncedQuery.trim().length >= 2;
 
   const { data: searchData, isFetching: searching } = useQuery({
@@ -118,16 +136,21 @@ export default function Search() {
     enabled: canSearch,
   });
 
+  // Gợi ý khi CHƯA search (ô trống / < 2 ký tự)
   const { data: suggestionsData, isLoading: loadingSuggestions } = useQuery({
     queryKey: ["suggestions"],
     queryFn: () => getFollowSuggestions(1, 15),
-    enabled: canSearch,
+    enabled: !!token && !canSearch,
   });
 
   const result = searchData?.data || searchData;
   const users = result?.users || [];
   const topics = result?.topics || [];
-  const suggestions = suggestionsData?.data || suggestionsData || [];
+  const suggestions = Array.isArray(suggestionsData?.data)
+    ? suggestionsData.data
+    : Array.isArray(suggestionsData)
+      ? suggestionsData
+      : [];
 
   return (
     <div
@@ -152,7 +175,7 @@ export default function Search() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Tìm kiếm"
-                className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-neutral-900 border border-zinc-800 text-sm focus:outline-none focus:border-zinc-600 placeholder:text-neutral-500"
+                className="w-full pl-10 pr-10 py-2.5 rounded-2xl  border border-zinc-800 text-sm focus:outline-none focus:border-zinc-600 placeholder:text-neutral-500"
               />
               {query && (
                 <button
@@ -171,6 +194,7 @@ export default function Search() {
 
       <main className="flex-1 w-full max-w-150 mx-auto border-t border-x border-zinc-700 rounded-t-xl mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <div className="min-h-full pb-24 md:pb-6">
+          {/* Kết quả tìm kiếm */}
           {canSearch && (
             <>
               {searching && (
@@ -209,7 +233,7 @@ export default function Search() {
             </>
           )}
 
-          {/* Gợi ý khi chưa gõ / gõ < 2 ký tự */}
+          {/* Gợi ý khi chưa search */}
           {!canSearch && (
             <section>
               <h2 className="px-4 pt-4 pb-2 text-sm font-bold">
@@ -235,24 +259,21 @@ export default function Search() {
 
               {token && loadingSuggestions && (
                 <div className="text-center pt-10 text-neutral-500 text-sm">
-                  Loading...
+                  Đang tải...
                 </div>
               )}
 
               {token &&
                 !loadingSuggestions &&
-                (Array.isArray(suggestions) ? suggestions : []).map((user) => (
+                suggestions.map((user) => (
                   <UserRow key={user.id} user={user} />
                 ))}
 
-              {token &&
-                !loadingSuggestions &&
-                Array.isArray(suggestions) &&
-                suggestions.length === 0 && (
-                  <div className="text-center pt-10 text-neutral-500 text-sm">
-                    Không có gợi ý
-                  </div>
-                )}
+              {token && !loadingSuggestions && suggestions.length === 0 && (
+                <div className="text-center pt-10 text-neutral-500 text-sm">
+                  Không có gợi ý
+                </div>
+              )}
             </section>
           )}
         </div>

@@ -124,20 +124,6 @@ export default function Menu() {
               </NavLink>
             </div>
 
-            <div className="hidden md:block w-fit lg:w-full order-7">
-              <NavLink to="/analytics" className={navLinkClass}>
-                <i className="fa-solid fa-square-poll-vertical text-xl w-6 text-center"></i>
-                <span className="hidden lg:block">Thông tin chi tiết</span>
-              </NavLink>
-            </div>
-
-            <div className="hidden md:block w-fit lg:w-full order-8">
-              <NavLink to="/saved" className={navLinkClass}>
-                <i className="fa-solid fa-bookmark text-xl w-6 text-center"></i>
-                <span className="hidden lg:block">Đã lưu</span>
-              </NavLink>
-            </div>
-
             {!token && (
               <div className="w-full flex-col gap-4 order-9 hidden lg:flex">
                 <Link to="/login" className="w-full">
@@ -284,9 +270,10 @@ export default function Menu() {
               <i className="fa-solid fa-arrow-left-long"></i>
             </button>
 
-            <div className="col-span-2 flex items-center justify-center font-semibold">
+            <div className=" flex items-center justify-center font-semibold">
               Giao diện
             </div>
+            <div></div>
           </div>
 
           <div
@@ -331,17 +318,7 @@ export default function Menu() {
             </button>
           </div>
 
-          <div className="mt-2">
-            <button
-              onClick={() => {
-                setIsInterface(false);
-                setIsShowAdd(false);
-              }}
-              className="px-2 text-left rounded-md hover:bg-neutral-500 py-2 w-full"
-            >
-              Đóng
-            </button>
-          </div>
+          
         </div>
       )}
     </div>

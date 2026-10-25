@@ -177,7 +177,7 @@ export default function UpdateProfile() {
             className="p-2 rounded-full justify-self-start hover:bg-neutral-800"
             onClick={() => navigate(-1)}
           >
-            <i class="fa-solid fa-arrow-left"></i>
+            <i className="fa-solid fa-arrow-left"></i>
           </button>
           <h1 className="font-bold text-center text-base">Chỉnh sửa trang cá nhân</h1>
         </div>

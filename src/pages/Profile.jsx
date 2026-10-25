@@ -1,28 +1,29 @@
-import { useParams, Link } from "react-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { request } from "@/api/axiosApi";
-import { followUser, unfollowUser, getUserInfo } from "@/api/Threads";
-import { useTheme } from "@/store/theme";
+import { useState } from "react";
+import { Link, useParams } from "react-router";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
+import {
+  getUserByUsername,
+  getUserInfo,
+  getUserPosts,
+  followUser,
+  unfollowUser,
+} from "@/api/Threads";
 import { Button } from "@/components/ui/button";
-import { useState, useEffect } from "react";
-
-async function getUserByUsername(username) {
-  // Thử vài path phổ biến của API F8
-  try {
-    const res = await request.get(`/users/${username}`);
-    return res.data;
-  } catch {
-    const res = await request.get(`/users/username/${username}`);
-    return res.data;
-  }
-}
+import PostCard from "@/pages/HomePage/PostCard";
+import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
+import { useCallback } from "react";
+import { useTheme } from "@/store/theme";
 
 export default function Profile() {
   const { username } = useParams();
-  const theme = useTheme((s) => s.theme);
   const queryClient = useQueryClient();
   const token = localStorage.getItem("access_token");
-
+  const theme = useTheme((s) => s.theme);
   const { data: meData } = useQuery({
     queryKey: ["currentUser"],
     queryFn: getUserInfo,
@@ -30,113 +31,194 @@ export default function Profile() {
   });
   const me = meData?.data || meData;
 
-  const { data, isLoading, error } = useQuery({
+  const {
+    data: profileRes,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["profile", username],
     queryFn: () => getUserByUsername(username),
     enabled: !!username,
-    retry: 1,
   });
 
-  const user = data?.data || data;
+  const profile = profileRes?.data || profileRes;
+
   const [following, setFollowing] = useState(false);
 
-  useEffect(() => {
-    if (user) setFollowing(!!user.is_following);
-  }, [user]);
+  useState(() => {});
+
+  const isMe =
+    me?.id != null &&
+    profile?.id != null &&
+    String(me.id) === String(profile.id);
 
   const followMutation = useMutation({
-    mutationFn: () =>
-      following ? unfollowUser(user.id) : followUser(user.id),
-    onMutate: () => setFollowing((v) => !v),
-    onError: () => setFollowing((v) => !v),
-    onSettled: () =>
-      queryClient.invalidateQueries({ queryKey: ["profile", username] }),
+    mutationFn: async (wantFollow) => {
+      if (!profile?.id) throw new Error("No user id");
+      return wantFollow ? followUser(profile.id) : unfollowUser(profile.id);
+    },
+    onMutate: (wantFollow) => {
+      const prev = following;
+      setFollowing(wantFollow);
+      return { prev };
+    },
+    onError: (err, _w, ctx) => {
+      const msg = err?.response?.data?.message || "";
+      if (/already following/i.test(msg)) {
+        setFollowing(true);
+        return;
+      }
+      if (/not following/i.test(msg)) {
+        setFollowing(false);
+        return;
+      }
+      if (ctx) setFollowing(ctx.prev);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile", username] });
+    },
   });
 
-  const isMe = me?.username === username || me?.id === user?.id;
+  const {
+    data: postsData,
+    isLoading: loadingPosts,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["userPosts", profile?.id],
+    queryFn: ({ pageParam = 1 }) => getUserPosts(profile.id, pageParam, 10),
+    getNextPageParam: (last) => {
+      const p = last?.pagination;
+      if (!p) return undefined;
+      return p.current_page < p.last_page ? p.current_page + 1 : undefined;
+    },
+    initialPageParam: 1,
+    enabled: !!profile?.id,
+  });
+
+  const posts = postsData?.pages?.flatMap((p) => p.data || []) || [];
+
+  const loadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) fetchNextPage();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const sentinelRef = useInfiniteScroll(
+    loadMore,
+    !!hasNextPage,
+    isFetchingNextPage,
+  );
+
+  if (isLoading) {
+    return (
+      <div className="pt-20 text-center text-neutral-500">Đang tải...</div>
+    );
+  }
+
+  if (error || !profile) {
+    return (
+      <div className="pt-20 text-center">
+        <p className="text-red-400 mb-2">Không tìm thấy người dùng</p>
+        <p className="text-sm text-neutral-500">@{username}</p>
+        <Link to="/" className="text-sm underline mt-4 inline-block">
+          Về trang chủ
+        </Link>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={`h-screen w-full overflow-hidden flex flex-col ${
-        theme === "dark" ? "bg-black text-white" : "bg-white text-black"
-      }`}
-    >
-      <header className="fixed top-0 left-0 w-full h-14 backdrop-blur-3xl z-10 border-b border-zinc-800/50">
-        <div className="h-full px-5 max-w-150 mx-auto flex items-center gap-4">
-          <Link to="/search" className="p-2 rounded-full hover:bg-neutral-800">
+    <div className="h-screen w-full overflow-hidden flex flex-col">
+      <header className="fixed top-0 left-0 w-full h-14 backdrop-blur-3xl z-10 border-b border-zinc-800/40">
+        <div className="h-full px-4 max-w-150 mx-auto flex items-center gap-3">
+          <Link to="/" className="text-neutral-400 hover:text-white">
             <i className="fa-solid fa-arrow-left" />
           </Link>
           <div>
-            <h1 className="font-bold text-base leading-tight">
-              {user?.name || username}
+            <h1 className="font-bold text-sm leading-tight">
+              {profile.name || profile.username}
             </h1>
-            {user?.username && (
-              <p className="text-xs text-neutral-500">@{user.username}</p>
-            )}
+            <p className="text-xs text-neutral-500">@{profile.username}</p>
           </div>
         </div>
       </header>
 
-      <main className="flex-1 w-full max-w-150 mx-auto mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {isLoading && (
-          <div className="text-center pt-20 text-neutral-500">Loading...</div>
-        )}
-
-        {error && (
-          <div className="text-center pt-20 space-y-3">
-            <p className="text-red-400 text-sm">Không tải được trang cá nhân.</p>
-            <p className="text-neutral-500 text-xs">
-              API có thể chưa hỗ trợ xem profile theo username.
-            </p>
-            <Link to="/search" className="text-sm underline text-sky-500">
-              Quay lại tìm kiếm
-            </Link>
-          </div>
-        )}
-
-        {user && !error && (
-          <div className="px-4 py-6">
-            <div className="flex items-start justify-between gap-4">
-              <img
-                src={user.avatar_url || "/default-avatar.jpg"}
-                alt=""
-                className="w-20 h-20 rounded-full object-cover"
-              />
-              {!isMe && token && (
+      <main className="flex-1 w-full max-w-150 mx-auto border-x border-zinc-700 mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {/* Header profile */}
+        <div className="px-4 pt-6 pb-4 border-b border-zinc-800">
+          <div className="flex items-start justify-between gap-3">
+            <img
+              src={
+                profile.avatar_url || profile.avatar || "/default-avatar.jpg"
+              }
+              alt=""
+              className="w-16 h-16 rounded-full object-cover"
+            />
+            {!isMe && token && (
+              <Button
+                size="sm"
+                onClick={() => followMutation.mutate(!following)}
+                disabled={followMutation.isPending}
+                className={`rounded-xl text-xs font-bold px-4 h-8 transition-all cursor-pointer ${
+                  following
+                    ? `bg-transparent border border-zinc-600 ${theme === "dark" ? "text-white" : "text-black"}`
+                    : `${theme === "dark" ? "bg-white text-black hover:bg-neutral-200" : "bg-black text-white hover:bg-neutral-800"}` 
+                }`}
+              >
+                {following ? "Đang theo dõi" : "Theo dõi"}
+              </Button>
+            )}
+            {isMe && (
+              <Link to="/account">
                 <Button
-                  onClick={() => followMutation.mutate()}
-                  disabled={followMutation.isPending}
-                  className={`rounded-xl font-semibold px-5 ${
-                    following
-                      ? "bg-transparent border border-zinc-600"
-                      : "bg-white text-black"
-                  }`}
+                  size="sm"
+                  className="rounded-xl text-xs font-bold px-4 h-8 border border-zinc-600 bg-transparent"
                 >
-                  {following ? "Đang theo dõi" : "Theo dõi"}
+                  Sửa hồ sơ
                 </Button>
-              )}
-            </div>
+              </Link>
+            )}
+          </div>
 
-            <div className="mt-4">
-              <div className="flex items-center gap-1">
-                <h2 className="text-xl font-bold">
-                  {user.name || user.username}
-                </h2>
-                {user.verified && (
-                  <i className="fa-solid fa-circle-check text-sky-500" />
-                )}
+          <h2 className="mt-3 font-bold text-lg flex items-center gap-1">
+            {profile.name || profile.username}
+            {profile.verified && (
+              <i className="fa-solid fa-circle-check text-sky-500 text-sm" />
+            )}
+          </h2>
+          <p className="text-sm text-neutral-500">@{profile.username}</p>
+          {profile.bio && (
+            <p className="text-sm mt-2 whitespace-pre-wrap">{profile.bio}</p>
+          )}
+          <p className="text-sm text-neutral-500 mt-2">
+            <span className=" font-semibold">
+              {profile.followers_count ?? 0}
+            </span>{" "}
+            người theo dõi
+          </p>
+        </div>
+
+        {/* Posts */}
+        {loadingPosts ? (
+          <p className="text-center py-10 text-sm text-neutral-500">
+            Đang tải bài viết...
+          </p>
+        ) : posts.length === 0 ? (
+          <p className="text-center py-10 text-sm text-neutral-500">
+            Chưa có bài viết
+          </p>
+        ) : (
+          <div>
+            {posts.map((post) => (
+              <div key={post.id} className="border-b border-zinc-800">
+                <PostCard
+                  post={post}
+                  currentUserId={me?.id}
+                  showFollow={false}
+                />
               </div>
-              <p className="text-neutral-500">@{user.username}</p>
-              {user.bio && (
-                <p className="mt-2 text-sm text-neutral-300">{user.bio}</p>
-              )}
-              <p className="mt-2 text-sm text-neutral-500">
-                <span className="text-white font-semibold">
-                  {user.followers_count ?? 0}
-                </span>{" "}
-                người theo dõi
-              </p>
-            </div>
+            ))}
+            <div ref={sentinelRef} className="h-10" />
           </div>
         )}
       </main>

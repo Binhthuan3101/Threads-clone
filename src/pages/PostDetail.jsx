@@ -37,7 +37,7 @@ export default function PostDetail() {
     >
       <header className="fixed top-0 left-0 w-full h-14 backdrop-blur-3xl z-10 border-b border-zinc-800/50">
         <div className="h-full px-5 max-w-150 mx-auto flex items-center gap-4">
-          <Link to="/" className="p-2 rounded-full hover:bg-neutral-800">
+          <Link to="/" className="p-2 rounded-full hover:bg-neutral-500 px-2 py-1.5">
             <i className="fa-solid fa-arrow-left" />
           </Link>
           <h1 className="font-bold text-base">Thread</h1>

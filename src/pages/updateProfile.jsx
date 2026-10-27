@@ -19,11 +19,7 @@ const schema = z.object({
     .string()
     .min(1, "Username là bắt buộc")
     .max(30, "Tối đa 30 ký tự"),
-  bio: z
-    .string()
-    .max(150, "Bio tối đa 150 ký tự")
-    .optional()
-    .or(z.literal("")),
+  bio: z.string().max(150, "Bio tối đa 150 ký tự").optional().or(z.literal("")),
 });
 
 export default function UpdateProfile() {
@@ -75,18 +71,18 @@ export default function UpdateProfile() {
 
   const mutation = useMutation({
     mutationFn: async (data) => {
-  const fd = new FormData();
-  fd.append("_method", "PUT");
-  fd.append("name", data.name?.trim() || "");
-  fd.append("username", data.username?.trim() || "");
-  fd.append("bio", data.bio?.trim() || "");
+      const fd = new FormData();
+      fd.append("_method", "PUT");
+      fd.append("name", data.name?.trim() || "");
+      fd.append("username", data.username?.trim() || "");
+      fd.append("bio", data.bio?.trim() || "");
 
-  if (avatarFile) {
-    fd.append("avatar", avatarFile);
-  }
+      if (avatarFile) {
+        fd.append("avatar", avatarFile);
+      }
 
-  return updateProfile(fd);
-},
+      return updateProfile(fd);
+    },
 
     onSuccess: async (res) => {
       setSuccessMsg("Cập nhật hồ sơ thành công");
@@ -128,7 +124,7 @@ export default function UpdateProfile() {
         });
       } else {
         alert(
-          err?.response?.data?.message || err?.message || "Cập nhật thất bại"
+          err?.response?.data?.message || err?.message || "Cập nhật thất bại",
         );
       }
     },
@@ -188,7 +184,7 @@ export default function UpdateProfile() {
         <div className="h-full px-5 max-w-150 mx-auto grid grid-cols-[1fr_2fr_1fr] items-center gap-4">
           <button
             type="button"
-            className="p-2 rounded-full justify-self-start hover:bg-neutral-800"
+            className="p-2 ml-5 rounded-full justify-self-start hover:bg-neutral-800"
             onClick={() => navigate(-1)}
           >
             <i className="fa-solid fa-arrow-left" />
@@ -224,7 +220,7 @@ export default function UpdateProfile() {
               </div>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,.jpg,.jpeg"
                 className="hidden"
                 onChange={handleAvatarChange}
               />
@@ -233,7 +229,7 @@ export default function UpdateProfile() {
               Đổi ảnh đại diện
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,.jpg,.jpeg"
                 className="hidden"
                 onChange={handleAvatarChange}
               />
@@ -251,7 +247,9 @@ export default function UpdateProfile() {
               placeholder="Tên của bạn..."
             />
             {errors.name && (
-              <p className="text-rose-500 text-xs mt-1">{errors.name.message}</p>
+              <p className="text-rose-500 text-xs mt-1">
+                {errors.name.message}
+              </p>
             )}
           </div>
 

@@ -169,13 +169,15 @@ export default function Search() {
 
           <div className="w-full max-w-150 justify-self-center px-2">
             <div className="relative">
-              <i className="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm" />
+              <div className="absolute left-7 md:left-3 top-1/2 -translate-y-1/2 text-neutral-500 text-sm">
+                <i className="fa-solid fa-magnifying-glass " />
+              </div>
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Tìm kiếm"
-                className="w-full pl-10 pr-10 py-2.5 rounded-2xl  border border-zinc-800 text-sm focus:outline-none focus:border-zinc-600 placeholder:text-neutral-500"
+                className="w-full ml-4 md:ml-0 pl-10 pr-10 py-2.5 rounded-2xl  border border-zinc-800 text-sm focus:outline-none focus:border-zinc-600 placeholder:text-neutral-500"
               />
               {query && (
                 <button

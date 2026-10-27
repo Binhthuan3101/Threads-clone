@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router";
 import {
   useInfiniteQuery,
@@ -43,9 +43,13 @@ export default function Profile() {
 
   const profile = profileRes?.data || profileRes;
 
-  const [following, setFollowing] = useState(false);
+  const [following, setFollowing] = useState(!!profile?.is_following);
 
-  useState(() => {});
+  useEffect(() => {
+  if (profile) {
+    setFollowing(!!profile.is_following);
+  }
+}, [profile?.id, profile?.is_following]);
 
   const isMe =
     me?.id != null &&

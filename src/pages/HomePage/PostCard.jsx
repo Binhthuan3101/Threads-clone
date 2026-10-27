@@ -6,6 +6,7 @@ import { formatTimeAgo } from "@/components/formatTimeAgo";
 import InteractionBar from "@/components/post/InteractionBar";
 import ShareMenu from "@/components/post/ShareMenu";
 import PostMenu from "@/components/post/PostMenu";
+import { isFollowedCached, setFollowed } from "@/utils/followCache";
 
 export default function PostCard({
   post,
@@ -30,40 +31,42 @@ export default function PostCard({
     userId != null &&
     String(userId) === String(currentUserId);
 
-  const [following, setFollowing] = useState(!!post.user?.is_following);
+  const [following, setFollowing] = useState(
+    !!post.user?.is_following || isFollowedCached(userId),
+  );
 
   useEffect(() => {
-    setFollowing(!!post.user?.is_following);
-  }, [post.id, post.user?.is_following]);
+    setFollowing(!!post.user?.is_following || isFollowedCached(userId));
+  }, [post.id, post.user?.is_following, userId]);
 
   const followMutation = useMutation({
     mutationFn: async (wantFollow) => {
       if (!token) throw new Error("Chưa đăng nhập");
       if (!userId) throw new Error("Không có user id");
-      if (wantFollow) return followUser(userId);
-      return unfollowUser(userId);
+      return wantFollow ? followUser(userId) : unfollowUser(userId);
     },
-
     onMutate: async (wantFollow) => {
       const prev = following;
       setFollowing(wantFollow);
+      setFollowed(userId, wantFollow);
       return { prev };
     },
-
-    onError: (err, wantFollow, ctx) => {
+    onError: (err, _wantFollow, ctx) => {
       const msg = err?.response?.data?.message || "";
-
       if (/already following/i.test(msg)) {
         setFollowing(true);
+        setFollowed(userId, true);
         return;
       }
-
       if (/not following/i.test(msg)) {
         setFollowing(false);
+        setFollowed(userId, false);
         return;
       }
-
-      if (ctx) setFollowing(ctx.prev);
+      if (ctx) {
+        setFollowing(ctx.prev);
+        setFollowed(userId, ctx.prev);
+      }
       console.error(
         "Follow error:",
         err?.response?.status,
@@ -71,7 +74,6 @@ export default function PostCard({
       );
       alert(msg || "Không thể cập nhật theo dõi");
     },
-
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["posts"] });
       queryClient.invalidateQueries({ queryKey: ["suggestions"] });
@@ -80,16 +82,12 @@ export default function PostCard({
 
   const goDetail = () => {
     const username = post.user?.username;
-    if (username && post.id) {
-      navigate(`/${username}/post/${post.id}`);
-    }
+    if (username && post.id) navigate(`/${username}/post/${post.id}`);
   };
 
-  const goProfileUsername = () => {
-    const username = post?.user.username;
-    if (username) {
-      navigate(`/${username}`);
-    }
+  const goProfile = () => {
+    const username = post.user?.username;
+    if (username) navigate(`/${username}`);
   };
 
   return (
@@ -114,7 +112,7 @@ export default function PostCard({
               "/default-avatar.jpg"
             }
             alt=""
-            onClick={goProfileUsername}
+            onClick={goProfile}
           />
 
           {showFollow && token && !isMe && (
@@ -140,14 +138,15 @@ export default function PostCard({
         <div className="flex flex-col flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div className="flex gap-2 items-baseline min-w-0">
-              <div onClick={(e) => e.stopPropagation()}>
-                <h4
-                  className="line-clamp-1 text-[15px] font-semibold"
-                  onClick={goProfileUsername}
-                >
-                  {post.user?.name || post.user?.username}
-                </h4>
-              </div>
+              <h4
+                className="line-clamp-1 text-[15px] font-semibold cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  goProfile();
+                }}
+              >
+                {post.user?.name || post.user?.username}
+              </h4>
               {post.user?.verified && (
                 <i className="fa-solid fa-circle-check text-sky-500 text-xs" />
               )}
@@ -186,7 +185,7 @@ export default function PostCard({
 
           {post.media_urls?.length > 0 && (
             <div
-              className="flex gap-2 mt-2 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              className="flex gap-2 mt-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
               onClick={(e) => e.stopPropagation()}
             >
               {post.media_urls.map((url, i) => (
@@ -232,7 +231,6 @@ export default function PostCard({
         </div>
       </div>
 
-      {/* Lightbox xem ảnh */}
       {lightbox && (
         <div
           className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4"

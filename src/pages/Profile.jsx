@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router";
 import {
   useInfiniteQuery,
@@ -16,14 +16,15 @@ import {
 import { Button } from "@/components/ui/button";
 import PostCard from "@/pages/HomePage/PostCard";
 import { useInfiniteScroll } from "@/hooks/useInfiniteScroll";
-import { useCallback } from "react";
 import { useTheme } from "@/store/theme";
+import { isFollowedCached, setFollowed } from "@/utils/followCache";
 
 export default function Profile() {
   const { username } = useParams();
   const queryClient = useQueryClient();
   const token = localStorage.getItem("access_token");
   const theme = useTheme((s) => s.theme);
+
   const { data: meData } = useQuery({
     queryKey: ["currentUser"],
     queryFn: getUserInfo,
@@ -43,13 +44,12 @@ export default function Profile() {
 
   const profile = profileRes?.data || profileRes;
 
-  const [following, setFollowing] = useState(!!profile?.is_following);
+  const [following, setFollowing] = useState(false);
 
   useEffect(() => {
-  if (profile) {
-    setFollowing(!!profile.is_following);
-  }
-}, [profile?.id, profile?.is_following]);
+    if (!profile?.id) return;
+    setFollowing(!!profile.is_following || isFollowedCached(profile.id));
+  }, [profile?.id, profile?.is_following]);
 
   const isMe =
     me?.id != null &&
@@ -64,19 +64,25 @@ export default function Profile() {
     onMutate: (wantFollow) => {
       const prev = following;
       setFollowing(wantFollow);
+      setFollowed(profile.id, wantFollow);
       return { prev };
     },
     onError: (err, _w, ctx) => {
       const msg = err?.response?.data?.message || "";
       if (/already following/i.test(msg)) {
         setFollowing(true);
+        setFollowed(profile.id, true);
         return;
       }
       if (/not following/i.test(msg)) {
         setFollowing(false);
+        setFollowed(profile.id, false);
         return;
       }
-      if (ctx) setFollowing(ctx.prev);
+      if (ctx) {
+        setFollowing(ctx.prev);
+        setFollowed(profile.id, ctx.prev);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile", username] });
@@ -110,7 +116,7 @@ export default function Profile() {
   const sentinelRef = useInfiniteScroll(
     loadMore,
     !!hasNextPage,
-    isFetchingNextPage,
+    isFetchingNextPage
   );
 
   if (isLoading) {
@@ -148,12 +154,11 @@ export default function Profile() {
       </header>
 
       <main className="flex-1 w-full max-w-150 mx-auto border-x border-zinc-700 mt-14 h-[calc(100vh-3.5rem)] overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {/* Header profile */}
         <div className="px-4 pt-6 pb-4 border-b border-zinc-800">
           <div className="flex items-start justify-between gap-3">
             <img
               src={
-                profile.avatar_url || profile.avatar || "/default-avatar.jpg"
+                profile.avatar_url || "/default-avatar.jpg"
               }
               alt=""
               className="w-16 h-16 rounded-full object-cover"
@@ -165,8 +170,12 @@ export default function Profile() {
                 disabled={followMutation.isPending}
                 className={`rounded-xl text-xs font-bold px-4 h-8 transition-all cursor-pointer ${
                   following
-                    ? `bg-transparent border border-zinc-600 ${theme === "dark" ? "text-white" : "text-black"}`
-                    : `${theme === "dark" ? "bg-white text-black hover:bg-neutral-200" : "bg-black text-white hover:bg-neutral-800"}` 
+                    ? `bg-transparent border border-zinc-600 ${
+                        theme === "dark" ? "text-white" : "text-black"
+                      }`
+                    : theme === "dark"
+                      ? "bg-white text-black hover:bg-neutral-200"
+                      : "bg-black text-white hover:bg-neutral-800"
                 }`}
               >
                 {following ? "Đang theo dõi" : "Theo dõi"}
@@ -195,14 +204,13 @@ export default function Profile() {
             <p className="text-sm mt-2 whitespace-pre-wrap">{profile.bio}</p>
           )}
           <p className="text-sm text-neutral-500 mt-2">
-            <span className=" font-semibold">
+            <span className="font-semibold">
               {profile.followers_count ?? 0}
             </span>{" "}
             người theo dõi
           </p>
         </div>
 
-        {/* Posts */}
         {loadingPosts ? (
           <p className="text-center py-10 text-sm text-neutral-500">
             Đang tải bài viết...

@@ -27,6 +27,7 @@ export default function Home() {
   const [isOpenPost, setIsOpenPost] = useState(false);
   const [replyPost, setReplyPost] = useState(null);
   const [embedPost, setEmbedPost] = useState(null);
+  const [offline, setOffline] = useState(!navigator.onLine);
 
   const token = localStorage.getItem("access_token");
 
@@ -44,6 +45,8 @@ export default function Home() {
     hasNextPage,
     fetchNextPage,
     error,
+    isError,
+    refetch,
   } = useInfiniteQuery({
     queryKey: ["posts", tab],
     queryFn: ({ pageParam = 1 }) => getPost(tab, pageParam, 10),
@@ -53,9 +56,15 @@ export default function Home() {
       return p.current_page < p.last_page ? p.current_page + 1 : undefined;
     },
     initialPageParam: 1,
+    retry: 1,
   });
 
   const posts = data?.pages?.flatMap((p) => p.data || []) || [];
+
+  const isOfflineError =
+    offline ||
+    error?.message === "Network Error" ||
+    error?.code === "ERR_NETWORK";
 
   const loadMore = useCallback(() => {
     if (hasNextPage && !isFetchingNextPage) fetchNextPage();
@@ -64,7 +73,7 @@ export default function Home() {
   const sentinelRef = useInfiniteScroll(
     loadMore,
     !!hasNextPage,
-    isFetchingNextPage,
+    isFetchingNextPage
   );
 
   useEffect(() => {
@@ -81,6 +90,20 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  useEffect(() => {
+    const goOnline = () => {
+      setOffline(false);
+      refetch();
+    };
+    const goOffline = () => setOffline(true);
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
+  }, [refetch]);
+
   return (
     <div className="h-screen w-full overflow-hidden flex flex-col">
       <header className="fixed top-0 left-0 w-full h-14 backdrop-blur-3xl z-10">
@@ -93,7 +116,7 @@ export default function Home() {
           </Link>
 
           <div className="flex w-full relative max-w-150 justify-self-center items-center p-2">
-            <div className="flex ml-5 md:ml-0  justify-between w-full overflow-x-auto">
+            <div className="flex ml-5 md:ml-0 justify-between w-full overflow-x-auto">
               <div className="flex gap-3 items-center justify-center">
                 {TABS.map((item) => (
                   <button
@@ -109,31 +132,26 @@ export default function Home() {
                   </button>
                 ))}
               </div>
-
               <div>
                 <button
                   onClick={() => setIsOpenTab((prev) => !prev)}
-                  className="px-1  hidden md:flex items-center justify-center py-1.5 text-xs border border-neutral-400 rounded-full cursor-pointer"
+                  className="px-1 hidden md:flex items-center justify-center py-1.5 text-xs border border-neutral-400 rounded-full cursor-pointer"
                 >
-                  <i className="fa-solid fa-ellipsis"></i>
+                  <i className="fa-solid fa-ellipsis" />
                 </button>
                 <Link to="/search" className="block md:hidden">
-                  <span>
-                    <i className="fa-solid fa-magnifying-glass"></i>
-                  </span>
+                  <i className="fa-solid fa-magnifying-glass" />
                 </Link>
               </div>
             </div>
             {isOpenTab && (
-              <div className="px-2 py-1.5 rounded-lg bg-neutral-600 absolute z-50 w-55  top-10 right-5">
+              <div className="px-2 py-1.5 rounded-lg bg-neutral-600 absolute z-50 w-55 top-10 right-5">
                 <button
                   onClick={() => setIsCreateTab((prev) => !prev)}
-                  className="flex p-1 cursor-pointer  w-full hover:bg-neutral-700  rounded-lg  items-center justify-between"
+                  className="flex p-1 cursor-pointer w-full hover:bg-neutral-700 rounded-lg items-center justify-between"
                 >
                   <span>Tạo bảng feed mới</span>
-                  <span>
-                    <i className="fa-solid fa-circle-plus"></i>
-                  </span>
+                  <i className="fa-solid fa-circle-plus" />
                 </button>
               </div>
             )}
@@ -143,12 +161,8 @@ export default function Home() {
       </header>
 
       {isCreateTab && (
-        <CreateFeed
-          isOpen={isCreateTab}
-          isClose={() => setIsCreateTab(false)}
-        />
+        <CreateFeed isOpen={isCreateTab} isClose={() => setIsCreateTab(false)} />
       )}
-
       {isOpenPost && (
         <CreatePostFeed
           isOpen={isOpenPost}
@@ -157,7 +171,6 @@ export default function Home() {
           tab={tab}
         />
       )}
-
       {replyPost && (
         <ReplyModal
           post={replyPost}
@@ -166,7 +179,6 @@ export default function Home() {
           onClose={() => setReplyPost(null)}
         />
       )}
-
       {embedPost && (
         <EmbedModal post={embedPost} onClose={() => setEmbedPost(null)} />
       )}
@@ -207,14 +219,31 @@ export default function Home() {
 
           {isLoading ? (
             <div className="text-center pt-20 font-bold">Loading...</div>
-          ) : error ? (
-            <div className="text-red-500 text-center pt-20">
-              Không thể tải bài viết.
+          ) : isError || offline ? (
+            <div className="text-center pt-20 px-6 space-y-3">
+              <p className="text-red-500 font-semibold">
+                {isOfflineError ? "Mất kết nối mạng" : "Không thể tải bài viết"}
+              </p>
+              <p className="text-sm text-neutral-500">
+                {isOfflineError
+                  ? "Kiểm tra Wi‑Fi / 4G rồi thử lại."
+                  : error?.response?.data?.message || error?.message}
+              </p>
+              <Button
+                onClick={() => refetch()}
+                className={
+                  theme === "dark"
+                    ? "bg-white text-black"
+                    : "bg-black text-white"
+                }
+              >
+                Thử lại
+              </Button>
             </div>
           ) : (
             <div>
               {posts.map((post) => (
-                <div key={post.id}  className="border-b border-zinc-400">
+                <div key={post.id} className="border-b border-zinc-400">
                   <PostCard
                     post={post}
                     currentUserId={currentUser?.id}

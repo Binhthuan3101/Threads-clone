@@ -130,7 +130,22 @@ export const updateColumns = async (columns) => {
 };
 
 export const updateProfile = async (data) => {
-  const res = await request.put("/auth/profile", data);
+  if (data instanceof FormData) {
+    if (!data.has("_method")) {
+      data.append("_method", "PUT");
+    }
+    const res = await request.post("/auth/profile", data);
+    return res.data;
+  }
+
+  const fd = new FormData();
+  fd.append("_method", "PUT");
+  if (data.name != null) fd.append("name", data.name);
+  if (data.username != null) fd.append("username", data.username);
+  if (data.bio != null) fd.append("bio", data.bio);
+  if (data.is_private != null) fd.append("is_private", data.is_private);
+
+  const res = await request.post("/auth/profile", fd);
   return res.data;
 };
 
@@ -393,7 +408,6 @@ export const getUserByUsername = async (username) => {
   return { data: found };
 };
 export const getUserPosts = async (userId, page = 1, perPage = 10) => {
-  // Thử feed; nếu API không lọc user_id, filter phía client
   const res = await request.get("/posts/feed", {
     params: { type: "for_you", page, per_page: perPage, user_id: userId },
   });

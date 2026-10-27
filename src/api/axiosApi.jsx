@@ -21,8 +21,6 @@ request.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`;
   }
 
-  // Quan trọng: nếu data là FormData thì XÓA Content-Type
-  // để browser tự set multipart/form-data + boundary đúng
   if (config.data instanceof FormData) {
     delete config.headers["Content-Type"];
   }
